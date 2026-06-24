@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write # create releases + tags
+  id-token: write # PyPI Trusted Publishing (OIDC) — no token needed
 
 jobs:
   release:
@@ -94,11 +95,14 @@ jobs:
               generated/java/target/*.jar
           fi
 
+      # ── Publish: PyPI (Trusted Publishing / OIDC — no token) ─────────────────────
+      - name: Publish Python client to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: generated/python/dist
+          skip-existing: true # don't fail if this version is already on PyPI
+
       # ── TODO: registry publishing (enable once accounts + secrets exist) ─────────
-      # PyPI (Trusted Publishing / OIDC — preferred, no token):
-      #   - uses: pypa/gh-action-pypi-publish@release/v1
-      #     with: { packages-dir: generated/python/dist }
-      #
       # npm:
       #   - run: cd generated/typescript && npm publish --access public
       #     env: { NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} }
