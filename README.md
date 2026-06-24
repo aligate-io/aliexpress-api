@@ -158,7 +158,7 @@ respective owner and is used here only to describe the data this API provides.
 ## Support
 
 - Website & docs: [aligate.io](https://aligate.io) · [aligate.io/docs](https://aligate.io/docs)
-- Email: [support@aligate.io](mailto:support@aligate.io)
+- Email: [admin@aligate.io](mailto:admin@aligate.io)
 - Issues with the SDKs: open an issue in this repository.
 
 ## License
