@@ -1,0 +1,103 @@
+name: Generate & Release SDKs
+
+# Regenerate the Python / Node.js / Java clients whenever the API spec changes on main,
+# build/validate each one, and cut a GitHub Release. Registry publishing (PyPI / npm /
+# Maven Central) is wired as a TODO below — enable once accounts + secrets exist.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "openapi.yaml"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Override SDK version (semver, e.g. 2.1.1). Defaults to the spec's API version."
+        required: false
+        type: string
+
+permissions:
+  contents: write # create releases + tags
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve SDK version
+        id: ver
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            V="${{ inputs.version }}"
+          else
+            RAW="$(grep -E '^  version:' openapi.yaml | head -1 | sed -E 's/.*version:[[:space:]]*"?([0-9.]+)"?.*/\1/')"
+            dots="$(grep -o '\.' <<<"$RAW" | wc -l | tr -d ' ')"
+            case "$dots" in
+              0) V="${RAW}.0.0" ;;
+              1) V="${RAW}.0" ;;
+              *) V="$RAW" ;;
+            esac
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Resolved SDK version: $V"
+
+      - name: Generate clients (Docker)
+        run: ./scripts/generate.sh "${{ steps.ver.outputs.version }}"
+
+      # ── Build / validate each client ───────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build Python client
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build generated/python
+          pip install generated/python
+          python -c "import aligate; print('python client OK')"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build TypeScript client
+        run: |
+          cd generated/typescript
+          npm install
+          npm run build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build Java client
+        run: |
+          cd generated/java
+          mvn -q -DskipTests package
+
+      # ── Release ────────────────────────────────────────────────────────────────
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.ver.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              generated/python/dist/* \
+              generated/java/target/*.jar
+          fi
+
+      # ── TODO: registry publishing (enable once accounts + secrets exist) ─────────
+      # PyPI (Trusted Publishing / OIDC — preferred, no token):
+      #   - uses: pypa/gh-action-pypi-publish@release/v1
+      #     with: { packages-dir: generated/python/dist }
+      #
+      # npm:
+      #   - run: cd generated/typescript && npm publish --access public
+      #     env: { NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} }
+      #
+      # Maven Central (Central Publisher Portal; requires GPG signing + portal token):
+      #   - run: cd generated/java && mvn -q -DskipTests deploy -P release
+      #     env: { ... central portal + gpg secrets ... }

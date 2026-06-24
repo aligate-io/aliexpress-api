@@ -1,0 +1,50 @@
+# ─── Aligate SDK (monorepo: Python · Node.js · Java) ────────────────────────────
+# Publish-only: clients are GENERATED from openapi.yaml and published to PyPI/npm/Maven.
+# The generated source is a build output and is NOT committed.
+generated/
+
+# OpenAPI generator working files
+.openapi-generator/
+.openapi-generator-ignore
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ─── Editors / IDEs ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+*.iml
+
+# ─── Secrets / env ──────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+
+# ─── Build / dependency artifacts (in case anything is built in-tree) ───────────
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+target/
+
+# ─── Logs ───────────────────────────────────────────────────────────────────────
+*.log

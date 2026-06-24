@@ -1,0 +1,7 @@
+{
+  "npmName": "@aligate/sdk",
+  "npmRepository": "https://registry.npmjs.org",
+  "supportsES6": true,
+  "withSeparateModelsAndApi": false,
+  "useSingleRequestParameter": true
+}

@@ -1,0 +1,9 @@
+{
+  "library": "native",
+  "groupId": "io.aligate",
+  "artifactId": "aligate-sdk",
+  "invokerPackage": "io.aligate.sdk",
+  "apiPackage": "io.aligate.sdk.api",
+  "modelPackage": "io.aligate.sdk.model",
+  "hideGenerationTimestamp": true
+}

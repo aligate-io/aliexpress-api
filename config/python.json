@@ -1,0 +1,7 @@
+{
+  "packageName": "aligate",
+  "projectName": "aligate",
+  "packageUrl": "https://github.com/aligate-io/aliexpress-api",
+  "library": "urllib3",
+  "generateSourceCodeOnly": false
+}

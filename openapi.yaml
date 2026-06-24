@@ -1,0 +1,1638 @@
+openapi: 3.0.3
+info:
+  title: AliExpress Parser API
+  description: |
+    Real-time AliExpress data parser covering products, product reviews, sellers, store
+    coupons, a seller's product catalog, and product search by text or image.
+    Products: pricing, stock status, shipping options, seller information, product
+    configurations (SKUs), and more - scoped to a specific country and currency.
+    Reviews: customer ratings and feedback for a product.
+    Sellers: full store profile with ratings, feedback, and categories.
+    Coupons: active seller coupon codes with discounts, thresholds, budgets, and expiry.
+    Seller products: a store's product catalog, paginated and best-selling first.
+    Search: find products by keyword or by uploading an image, returning paginated product
+    results with their categories.
+  version: "2.1"
+  x-category: eCommerce
+  x-long-description: |
+    Fetches live data from AliExpress across several endpoints: product (by product ID, country,
+    and currency), product reviews (by product ID), seller (store profile by store number),
+    seller coupons (active coupon campaigns by store number, shipping country, and currency),
+    seller products (a store's paginated product catalog by store number, shipping country, and
+    currency), text search (products matching a keyword), and image search (products matching an
+    uploaded image). Prices, shipping options, coupon eligibility, and search results are returned
+    for the requested country and currency. Typical response time is 1-5 seconds.
+
+servers:
+  - url: https://aligate-aliexpress-data-api.p.rapidapi.com
+
+paths:
+  /api/v2/product:
+    get:
+      summary: Get Product Info
+      description: |
+        Returns detailed information for a single AliExpress product: title, images, pricing,
+        available SKU variants, stock, shipping options, and seller details. Prices and
+        shipping are resolved for the requested country and currency.
+      operationId: Get Product Info
+      parameters:
+        - name: product_id
+          in: query
+          required: true
+          description: AliExpress product ID, taken from the product page URL.
+          schema:
+            type: integer
+            example: 1005004530469845
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/CurrencyParam"
+        - $ref: "#/components/parameters/LocaleParam"
+        - name: with_welcome_discount
+          in: query
+          required: false
+          description: Apply the new-buyer welcome discount to the returned price.
+          schema:
+            type: boolean
+            default: false
+            example: false
+        - name: with_description
+          in: query
+          required: false
+          description: >
+            Fetch the full product description (formatted HTML, plain text, and image gallery),
+            returned in the `description` field. Note: enabling this adds approximately 600-750 ms to the response time.
+          schema:
+            type: boolean
+            default: false
+            example: false
+      responses:
+        "200":
+          description: Product data successfully parsed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParseResponse"
+        "400":
+          description: Missing or invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found on AliExpress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Upstream parser error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/product/reviews:
+    get:
+      summary: Get Product Reviews
+      description: |
+        Returns buyer reviews for an AliExpress product, including the rating, buyer, review
+        text (with translation when available), images, and seller replies, plus a per-star
+        rating breakdown. Results are paginated and can be filtered (for example, only reviews
+        with images or a specific star rating) and sorted. A product with no reviews returns
+        HTTP 200 with an empty reviews array.
+      operationId: Get Product Reviews
+      parameters:
+        - name: product_id
+          in: query
+          required: true
+          description: AliExpress product ID, taken from the product page URL.
+          schema:
+            type: integer
+            example: 1005004530469845
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/LocaleParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - $ref: "#/components/parameters/FilterParam"
+        - $ref: "#/components/parameters/SortParam"
+      responses:
+        "200":
+          description: Reviews successfully parsed (reviews is empty when the product has none)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewsParseResponse"
+        "400":
+          description: Missing or invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found on AliExpress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Reviews parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/seller:
+    get:
+      summary: Get Seller Info
+      description: |
+        Returns the store profile for an AliExpress seller: store name, ratings, feedback
+        scores, follower count, store age, and product categories. Provide the store number
+        from the store URL. The seller ID is optional and is resolved automatically from the
+        store number when omitted.
+      operationId: Get Seller Info
+      parameters:
+        - name: store_num
+          in: query
+          required: true
+          description: AliExpress store number, taken from the store URL (aliexpress.com/store/{store_num}).
+          schema:
+            type: integer
+            example: 301635
+        - name: seller_id
+          in: query
+          required: false
+          description: >
+            AliExpress seller (admin seq) ID. Optional; resolved automatically from the store
+            number when omitted. It cannot be used in place of the store number.
+          schema:
+            type: integer
+            example: 0
+      responses:
+        "200":
+          description: Seller data successfully parsed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellerParseResponse"
+        "400":
+          description: Missing or invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Seller parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/seller/coupons:
+    get:
+      summary: Get Seller Coupons
+      description: |
+        Returns the active coupon campaigns for an AliExpress store, including code, discount
+        amount, minimum spend, budget, and expiry. Coupon eligibility and amounts depend on the
+        requested shipping country and currency. Provide the store number from the store URL.
+        A store with no active coupons returns HTTP 200 with an empty items array.
+      operationId: Get Seller Coupons
+      parameters:
+        - name: store_num
+          in: query
+          required: true
+          description: AliExpress store number, taken from the store URL (aliexpress.com/store/{store_num}).
+          schema:
+            type: integer
+            example: 301635
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/CurrencyParam"
+        - name: seller_id
+          in: query
+          required: false
+          description: >
+            AliExpress seller (admin seq) ID. Optional; resolved automatically from the store
+            number when omitted.
+          schema:
+            type: integer
+            example: 0
+      responses:
+        "200":
+          description: Coupons successfully parsed (items is empty when the seller has no active coupons)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponsParseResponse"
+        "400":
+          description: Missing or invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Store not found on AliExpress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Coupon parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/seller/products:
+    get:
+      summary: Get Seller Products
+      description: |
+        Returns a seller's product catalog (the products the store sells), paginated and sorted
+        best-selling first. Each product carries the card-level fields shown on the store page
+        (title, image, price, rating, units sold) — full product detail (description, shipping,
+        specifications, variations) is available via the Get Product Info endpoint. Results are
+        influenced by the requested shipping country and currency. Provide the store number from
+        the store URL; the seller ID is optional and resolved automatically from the store number
+        when omitted. A page beyond the last returns HTTP 200 with an empty products array.
+      operationId: Get Seller Products
+      parameters:
+        - name: store_num
+          in: query
+          required: true
+          description: AliExpress store number, taken from the store URL (aliexpress.com/store/{store_num}).
+          schema:
+            type: integer
+            example: 301635
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/CurrencyParam"
+        - $ref: "#/components/parameters/LocaleParam"
+        - name: seller_id
+          in: query
+          required: false
+          description: >
+            AliExpress seller (admin seq) ID. Optional; resolved automatically from the store
+            number when omitted.
+          schema:
+            type: integer
+            example: 0
+        - name: page
+          in: query
+          required: false
+          description: Page number of results to return (starts at 1).
+          schema:
+            type: integer
+            default: 1
+            example: 1
+      responses:
+        "200":
+          description: Catalog page parsed (products is empty when the page is beyond the last)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellerProductsParseResponse"
+        "400":
+          description: Missing or invalid query parameters (store_num, country and currency are required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Store not found on AliExpress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Seller-products parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/search/image:
+    post:
+      summary: Search By Image
+      description: |
+        Finds AliExpress products that visually match an uploaded image. Provide the image as a
+        base64-encoded string in the JSON body. Results are influenced by the requested shipping
+        country and currency, and are paginated. A query with no visual matches returns HTTP 200
+        with an empty products array.
+      operationId: Search By Image
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageSearchRequest"
+      responses:
+        "200":
+          description: Image search completed (products is empty when there are no matches)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageSearchParseResponse"
+        "400":
+          description: Missing or invalid request body (image64, country and currency are required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Image-search parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/search/text:
+    get:
+      summary: Search By Text
+      description: |
+        Searches AliExpress for a keyword and returns the matching products plus the available
+        product categories for that query. Each product carries the card-level fields shown on the
+        results page (title, image, price, rating, units sold) — full product detail (description,
+        shipping, specifications, variations) is available via the Get Product Info endpoint.
+        Results are influenced by the requested shipping country and currency, and are paginated.
+        A query with no matches returns HTTP 200 with an empty products array.
+      operationId: Search By Text
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Search keyword.
+          schema:
+            type: string
+            example: usb bluetooth adapter
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/CurrencyParam"
+        - $ref: "#/components/parameters/LocaleParam"
+        - name: page
+          in: query
+          required: false
+          description: Page number of results to return (starts at 1).
+          schema:
+            type: integer
+            default: 1
+            example: 1
+      responses:
+        "200":
+          description: Search completed (products is empty when there are no matches)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchParseResponse"
+        "400":
+          description: Missing or invalid query parameters (query, country and currency are required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Search parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+components:
+  parameters:
+    CountryParam:
+      name: country
+      in: query
+      required: true
+      description: Country code (ISO 3166-1 alpha-2) used for pricing and shipping eligibility.
+      schema:
+        type: string
+        example: PL
+        enum: [US, CA, MX, BR, AR, CL, CO, PE, EC, UY, VE, CR, PA, DO, GT, GB, IE, FR, DE, ES, PT, IT, NL, BE, LU, AT, CH, SE, NO, DK, FI, IS, PL, CZ, SK, HU, RO, BG, GR, HR, SI, LT, LV, EE, RS, UA, BY, RU, TR, IL, SA, AE, QA, KW, BH, OM, JO, LB, IQ, AZ, GE, KZ, UZ, CN, HK, TW, JP, KR, IN, PK, BD, LK, ID, TH, VN, MY, SG, PH, KH, AU, NZ, ZA, NG, EG, MA, DZ, TN, KE, GH]
+    CurrencyParam:
+      name: currency
+      in: query
+      required: true
+      description: Currency code (ISO 4217) for the returned prices.
+      schema:
+        type: string
+        example: PLN
+        enum: [USD, EUR, GBP, AUD, CAD, RUB, BRL, CLP, COP, MXN, ILS, INR, JPY, KRW, NOK, NZD, PHP, PLN, SEK, THB, TRY, UAH, VND, IDR, AED, SAR, CHF, CZK, DKK, HKD, HUF, SGD, ZAR, KZT, MYR, TWD]
+    LocaleParam:
+      name: locale
+      in: query
+      required: false
+      description: Response language locale.
+      schema:
+        type: string
+        default: en_US
+        example: en_US
+        enum: [en_US, en_GB, es_ES, es_CO, pt_BR, pt_PT, fr_FR, de_DE, it_IT, nl_NL, pl_PL, ru_RU, ru_PL, tr_TR, ko_KR, ja_JP, th_TH, vi_VN, id_ID, ar_SA, he_IL, uk_UA, zh_CN]
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: Page number of reviews to return (starts at 1).
+      schema:
+        type: integer
+        default: 1
+        example: 1
+    PageSizeParam:
+      name: page_size
+      in: query
+      required: false
+      description: Number of reviews per page (maximum 20).
+      schema:
+        type: integer
+        default: 20
+        example: 20
+    FilterParam:
+      name: filter
+      in: query
+      required: false
+      description: >
+        Restrict reviews to a subset. image = with photos, additional = with follow-up
+        feedback, local = from the requested country, 1-5 = that star rating. Empty = all.
+      schema:
+        type: string
+        enum: [image, additional, local, "1", "2", "3", "4", "5"]
+    SortParam:
+      name: sort
+      in: query
+      required: false
+      description: Sort order for the returned reviews.
+      schema:
+        type: string
+        default: complex_default
+        example: complex_default
+        enum: [complex_default, valid_date]
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: integer
+
+    ParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway
+      properties:
+        meta:
+          $ref: "#/components/schemas/ParseMeta"
+        settings:
+          $ref: "#/components/schemas/ParseSettings"
+        item:
+          $ref: "#/components/schemas/Product"
+
+    ParseMeta:
+      type: object
+      description: Request metadata set by the gateway
+      properties:
+        code:
+          type: integer
+          example: 200
+        attempt:
+          type: integer
+          description: "Which parser attempt won (1 = referral, 2-3 = normal)"
+          example: 1
+        v:
+          type: string
+          description: Parser version string
+          example: "glo-1.0.0"
+        source:
+          type: string
+          description: Parser path that produced the result
+          enum: [referral, normal, no_session]
+          example: referral
+        request_time:
+          type: string
+          description: UTC timestamp when the request was received
+          example: "2026-06-05 12:00:00"
+        execution_time:
+          type: string
+          description: Total parse duration
+          example: "1.23s"
+        trace_id:
+          type: string
+          description: Internal trace identifier
+        pgeo:
+          type: string
+          description: Inferred geographic region used by the parser
+        hedge_fired:
+          type: boolean
+          description: True when the fallback request was fired before the primary responded
+        duration_ms:
+          type: integer
+          format: int64
+          description: End-to-end gateway duration in milliseconds
+          example: 1234
+
+    ParseSettings:
+      type: object
+      description: Echo of the request parameters
+      properties:
+        locale:
+          type: string
+          example: "en_US"
+        currency:
+          type: string
+          example: "PLN"
+        country:
+          type: string
+          example: "PL"
+        item_id:
+          type: integer
+          format: int64
+          example: 1005004530469845
+
+    Product:
+      type: object
+      description: Parsed AliExpress product data
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1005006133180174
+        item_id_prefix:
+          type: string
+        title:
+          type: string
+        img_url:
+          type: string
+        img_list:
+          type: array
+          items:
+            type: string
+        video:
+          $ref: "#/components/schemas/ProductVideo"
+        price:
+          $ref: "#/components/schemas/Price"
+        configurations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductConfiguration"
+        ratings:
+          type: number
+          format: double
+          example: 4.7
+        review_amount:
+          type: integer
+          example: 188
+        seller:
+          $ref: "#/components/schemas/ProductSeller"
+        specs:
+          type: object
+          description: Free-form key/value product attributes (brand, model, sku, upc, etc.)
+          additionalProperties:
+            type: string
+        default_shipping:
+          $ref: "#/components/schemas/ShippingMethod"
+        shipping_methods:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShippingMethod"
+        category_path:
+          type: string
+        category_name:
+          type: string
+        breadcrumbs:
+          type: array
+          items:
+            type: string
+        sales:
+          type: integer
+          description: Total units sold
+          example: 1200
+        avail_quantity:
+          type: integer
+          description: Total available stock across all configurations
+          example: 976
+        in_stock:
+          type: boolean
+        can_ship:
+          type: boolean
+          description: True when the product can be shipped to the requested country
+        is_not_found:
+          type: boolean
+        has_welcome_discount:
+          type: boolean
+        has_one_time_discount:
+          type: boolean
+        description:
+          allOf:
+            - $ref: "#/components/schemas/ProductDescription"
+          description: >
+            Long-form product description. Present only when with_description=true was requested
+            (and the fetch succeeded).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductDescription:
+      type: object
+      description: >
+        Long-form product description. Returned only when with_description=true. Fetching it adds
+        an extra request (~600-750 ms).
+      properties:
+        html:
+          type: string
+          description: Sanitized description HTML (scripts and event-handler attributes removed; safe to render).
+          example: "<h2><strong>About this item:</strong></h2><h2>1. 40 Gbps 2000 MHz High Speed...</h2>"
+        text:
+          type: string
+          description: Plain-text version of the description (tags stripped).
+          example: "About this item: 1. 40 Gbps 2000 MHz High Speed: The Cat 8 ethernet cable..."
+        images:
+          type: array
+          description: Image URLs extracted from the description gallery.
+          items:
+            type: string
+          example:
+            - "https://ae01.alicdn.com/kf/Sf4908e5557c248e59446e4791b7ae7791.jpg"
+            - "https://ae01.alicdn.com/kf/S60ddba7c6904492390d01f94283da4ffq.jpg"
+
+    Price:
+      type: object
+      description: Price data for the product scoped to the requested country and currency
+      properties:
+        sku_id:
+          type: string
+          description: SKU identifier string
+        sku_id_int:
+          type: integer
+          format: int64
+          description: SKU identifier as integer
+        bulk_value:
+          type: number
+          format: double
+          description: Price per unit when buying in bulk
+        bulk_order:
+          type: integer
+          format: int64
+          description: Minimum quantity for bulk pricing
+        min_value:
+          type: number
+          format: double
+          description: Minimum price (lowest SKU variant)
+          example: 12.77
+        max_value:
+          type: number
+          format: double
+          description: Maximum price (highest SKU variant)
+          example: 18.50
+        original_min_value:
+          type: number
+          format: double
+          description: Original (pre-discount) minimum price
+        original_max_value:
+          type: number
+          format: double
+          description: Original (pre-discount) maximum price
+        currency:
+          type: string
+          example: PLN
+        country:
+          type: string
+          example: PL
+
+    ProductConfiguration:
+      type: object
+      description: A single SKU variant (e.g. a specific color/size combination)
+      properties:
+        id:
+          type: integer
+          format: int64
+        product_id:
+          type: integer
+          format: int64
+        sku_id:
+          type: string
+        sku_attribute:
+          type: string
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigurationProperty"
+        image:
+          type: string
+        price:
+          $ref: "#/components/schemas/ConfigurationPrice"
+
+    ConfigurationProperty:
+      type: object
+      description: "A single attribute of a SKU variant (e.g. Color: Red)"
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        value:
+          type: string
+        image:
+          type: string
+
+    ConfigurationPrice:
+      type: object
+      description: Price for a specific SKU variant
+      properties:
+        value:
+          type: number
+          format: double
+        original_value:
+          type: number
+          format: double
+        currency:
+          type: string
+        country:
+          type: string
+
+    ProductSeller:
+      type: object
+      properties:
+        seller_admin_seq:
+          type: integer
+        store_num:
+          type: integer
+        store_name:
+          type: string
+        store_url:
+          type: string
+        positive_rate:
+          type: string
+          description: Seller positive feedback percentage
+          example: "97.5%"
+        score:
+          type: integer
+
+    ProductVideo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        url:
+          type: string
+        thumbnail:
+          type: string
+
+    StoreCategory:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Category display name
+        group_id:
+          type: string
+          description: AliExpress category group identifier
+        url:
+          type: string
+          description: Direct URL to this category page
+        sub_categories:
+          type: array
+          description: Nested sub-categories (omitted if none)
+          items:
+            $ref: "#/components/schemas/StoreCategory"
+
+    ShippingMethod:
+      type: object
+      properties:
+        service_code:
+          type: string
+        value:
+          type: number
+          format: double
+          description: Shipping cost (0 for free shipping)
+        currency:
+          type: string
+        company:
+          type: string
+          description: Carrier name
+        min_days:
+          type: integer
+        max_days:
+          type: integer
+        shipping_from:
+          type: string
+          description: Origin country code
+        delivery_date:
+          type: string
+        guaranteed_delivery_time:
+          type: integer
+        free_shipping:
+          type: boolean
+        tracking:
+          type: boolean
+
+    SellerParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for seller requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/SellerMeta"
+        settings:
+          $ref: "#/components/schemas/SellerSettings"
+        item:
+          $ref: "#/components/schemas/SellerItem"
+
+    SellerMeta:
+      type: object
+      description: Request metadata set by the seller parser
+      properties:
+        code:
+          type: integer
+          example: 200
+        v:
+          type: string
+          description: Parser spider version
+          example: "v2_glo"
+        request_time:
+          type: string
+          description: UTC timestamp when the request was received
+          example: "2026-06-08 12:00:00"
+        execution_time:
+          type: string
+          description: Total parse duration
+          example: "0.45s"
+
+    SellerSettings:
+      type: object
+      description: Echo of the request parameters
+      properties:
+        seller_id:
+          type: integer
+          example: 0
+        store_num:
+          type: integer
+          example: 301635
+
+    SellerItem:
+      type: object
+      description: Parsed AliExpress seller/store data
+      properties:
+        id:
+          type: integer
+        store_num:
+          type: integer
+        store_name:
+          type: string
+        country:
+          type: string
+          description: Seller country code
+          example: "CN"
+        store_logo:
+          type: string
+          description: URL of the store logo image
+        store_rating:
+          type: number
+          format: double
+          description: Overall store rating score (0–5)
+          example: 4.8
+        since_from:
+          type: string
+          format: date-time
+          description: Date the store was established
+        positive_feedback:
+          type: integer
+          description: Count of positive feedback received
+        neutral_feedback:
+          type: integer
+          description: Count of neutral feedback received
+        negative_feedback:
+          type: integer
+          description: Count of negative feedback received
+        communication:
+          type: number
+          format: double
+          description: Communication score (0–5)
+        shipping_speed:
+          type: number
+          format: double
+          description: Shipping speed score (0–5)
+        described:
+          type: number
+          format: double
+          description: Item as described score (0–5)
+        positive_reviews:
+          type: number
+          format: double
+          description: Positive review percentage (0–100)
+        followers:
+          type: number
+          format: double
+          description: Number of store followers
+        six_month_sales:
+          type: number
+          format: double
+          description: Units sold in the last 6 months
+        regular_buyers:
+          type: number
+          format: double
+          description: Number of repeat buyers
+        store_age:
+          type: number
+          format: double
+          description: Store age in years
+        is_on_sale:
+          type: boolean
+          description: True when the store is currently running a sale campaign
+        sale_starts_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC timestamp when the current sale starts (omitted if not in sale)
+        sale_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC timestamp when the current sale ends (omitted if not in sale)
+        business_license_url:
+          type: string
+          description: Link to the seller's AliExpress business license verification page
+        store_categories:
+          type: array
+          description: Store's custom product category tree
+          items:
+            $ref: "#/components/schemas/StoreCategory"
+        spider:
+          type: string
+          description: Parser version used
+          example: "v2_glo"
+        updated_at:
+          type: string
+          format: date-time
+
+    CouponsParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for coupon requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/CouponMeta"
+        settings:
+          $ref: "#/components/schemas/CouponSettings"
+        items:
+          type: array
+          description: Active coupons of the store (empty when the seller has none)
+          items:
+            $ref: "#/components/schemas/Coupon"
+
+    CouponMeta:
+      type: object
+      description: Request metadata set by the coupon parser
+      properties:
+        code:
+          type: integer
+          example: 200
+        v:
+          type: string
+          description: Parser spider version
+          example: "v1_glo"
+        request_time:
+          type: string
+          description: UTC timestamp when the request was received
+          example: "2026-06-11 12:00:00"
+        execution_time:
+          type: string
+          description: Total parse duration
+          example: "1.20s"
+
+    CouponSettings:
+      type: object
+      description: Echo of the request parameters
+      properties:
+        seller_id:
+          type: integer
+          description: Seller admin seq (resolved from store_num when not provided)
+          example: 0
+        store_num:
+          type: integer
+          example: 301635
+        country:
+          type: string
+          example: "US"
+        currency:
+          type: string
+          example: "USD"
+
+    Coupon:
+      type: object
+      description: A single active seller coupon campaign
+      properties:
+        code:
+          type: string
+          description: Coupon code to apply at checkout
+          example: "0ERJ3W"
+        discount:
+          type: number
+          format: double
+          description: Discount amount in the requested currency
+          example: 1
+        orders_over:
+          type: number
+          format: double
+          description: Minimum order amount required to use the coupon
+          example: 1.01
+        expired:
+          type: string
+          format: date-time
+          description: Coupon expiration date (UTC)
+          example: "2026-06-30T23:59:59Z"
+        member_level:
+          type: string
+          description: Required store membership level (empty when unrestricted)
+          example: "A0"
+        country_list:
+          type: array
+          description: Countries eligible for the coupon (empty when unrestricted)
+          items:
+            type: string
+        is_limited_products:
+          type: boolean
+          description: >
+            True when the coupon applies only to selected products of the store
+            (derived from the campaign range group); false when it applies storewide.
+        total:
+          type: integer
+          description: Total coupon budget issued
+          example: 19999
+        consumed:
+          type: integer
+          description: Coupons already claimed/used
+          example: 1711
+        is_active:
+          type: boolean
+          example: true
+        spider:
+          type: string
+          description: Parser version used
+          example: "coupon_v1_glo-v1.0.0"
+        updated_at:
+          type: string
+          format: date-time
+
+    ReviewsParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for review requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/ReviewsMeta"
+        settings:
+          $ref: "#/components/schemas/ReviewsSettings"
+        item:
+          $ref: "#/components/schemas/ReviewsResult"
+
+    ReviewsMeta:
+      type: object
+      description: Request metadata set by the reviews parser
+      properties:
+        code:
+          type: integer
+          example: 200
+        v:
+          type: string
+          description: Parser spider version
+          example: "reviews_glo-v1.0.0"
+        request_time:
+          type: string
+          description: UTC timestamp when the request was received
+          example: "2026-06-16 12:00:00"
+        execution_time:
+          type: string
+          description: Total parse duration
+          example: "1.10s"
+
+    ReviewsSettings:
+      type: object
+      description: Echo of the request parameters
+      properties:
+        product_id:
+          type: integer
+          format: int64
+          example: 1005004530469845
+        country:
+          type: string
+          example: "PL"
+        language:
+          type: string
+          example: "en_US"
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        filter:
+          type: string
+          example: ""
+        sort:
+          type: string
+          example: "complex_default"
+
+    ReviewsResult:
+      type: object
+      description: Parsed product reviews with rating breakdown and pagination
+      properties:
+        product_id:
+          type: integer
+          format: int64
+          example: 1005004530469845
+        reviews:
+          type: array
+          description: Reviews on the requested page (empty when the product has none)
+          items:
+            $ref: "#/components/schemas/Review"
+        total_reviews:
+          type: integer
+          description: Total number of reviews for the product
+          example: 1280
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        total_pages:
+          type: integer
+          example: 64
+        product_rating:
+          type: number
+          format: double
+          description: Average product rating (0-5)
+          example: 4.8
+        language:
+          type: string
+          example: "en_US"
+        current_filter:
+          type: string
+          description: The filter applied to this result (empty when all reviews)
+        filter_stats:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewFilterStat"
+        rating_breakdown:
+          $ref: "#/components/schemas/RatingBreakdown"
+        updated_at:
+          type: string
+          format: date-time
+
+    Review:
+      type: object
+      description: A single buyer review
+      properties:
+        review_id:
+          type: integer
+          format: int64
+          example: 1000123456789
+        buyer:
+          $ref: "#/components/schemas/ReviewBuyer"
+        anonymous:
+          type: boolean
+        rating:
+          type: number
+          format: double
+          description: Review rating on a 0-5 scale
+          example: 5
+        country:
+          type: string
+          description: Buyer country code
+          example: "PL"
+        upvotes:
+          type: integer
+          description: Number of helpful votes
+        downvotes:
+          type: integer
+          description: Number of unhelpful votes
+        date:
+          type: string
+          description: Review date as shown on AliExpress
+          example: "18 Oct 2025"
+        shipping_method:
+          type: string
+          description: Logistics/shipping method used for the order
+        variant:
+          type: string
+          description: The purchased SKU/variant (e.g. color, size)
+        labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewLabel"
+        images:
+          type: array
+          items:
+            type: string
+        comment:
+          $ref: "#/components/schemas/ReviewContent"
+        additional_comment:
+          $ref: "#/components/schemas/ReviewContent"
+        seller_reply:
+          $ref: "#/components/schemas/ReviewContent"
+        additional_seller_reply:
+          $ref: "#/components/schemas/ReviewContent"
+
+    ReviewBuyer:
+      type: object
+      description: The review author
+      properties:
+        name:
+          type: string
+        gender:
+          type: string
+        profile_image:
+          type: string
+        country:
+          type: string
+
+    ReviewContent:
+      type: object
+      description: A piece of review text with an optional translation
+      properties:
+        text:
+          type: string
+          description: Original text
+        translated_text:
+          type: string
+          description: Translated text (when available)
+        date:
+          type: string
+
+    ReviewLabel:
+      type: object
+      description: A structured review attribute (key/value tag)
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+
+    RatingBreakdown:
+      type: object
+      description: Per-star and sentiment counts for the product
+      properties:
+        five_stars:
+          type: integer
+        four_stars:
+          type: integer
+        three_stars:
+          type: integer
+        two_stars:
+          type: integer
+        one_star:
+          type: integer
+        total_positive:
+          type: integer
+        total_negative:
+          type: integer
+        total_neutral:
+          type: integer
+
+    ReviewFilterStat:
+      type: object
+      description: Count of reviews available for a given filter
+      properties:
+        name:
+          type: string
+          description: Filter code
+        amount:
+          type: integer
+
+    ImageSearchRequest:
+      type: object
+      description: Image-search request body
+      required: [image64, country, currency]
+      properties:
+        image64:
+          type: string
+          description: Base64-encoded image bytes to search by.
+          example: "/9j/4AAQSkZJRgABAQEAYABgAAD..."
+        country:
+          type: string
+          description: Country code (ISO 3166-1 alpha-2) used for pricing and shipping eligibility.
+          example: "US"
+        currency:
+          type: string
+          description: Currency code (ISO 4217) for the returned prices.
+          example: "USD"
+        locale:
+          type: string
+          description: Response language locale.
+          default: en_US
+          example: "en_US"
+        page:
+          type: integer
+          description: Page number of results to return (starts at 1).
+          default: 1
+          example: 1
+
+    ImageSearchParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for image-search requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/ImageSearchMeta"
+        settings:
+          $ref: "#/components/schemas/ImageSearchSettings"
+        item:
+          $ref: "#/components/schemas/SearchResult"
+
+    ImageSearchMeta:
+      type: object
+      description: Request metadata set by the image-search parser
+      properties:
+        code:
+          type: integer
+          example: 200
+        v:
+          type: string
+          description: Parser spider version
+          example: "image_search_glo-v1.0.0"
+        request_time:
+          type: string
+          description: UTC timestamp when the request was received
+          example: "2026-06-17 12:00:00"
+        execution_time:
+          type: string
+          description: Total parse duration
+          example: "2.40s"
+
+    ImageSearchSettings:
+      type: object
+      description: Echo of the request parameters (the query image is not echoed)
+      properties:
+        country:
+          type: string
+          example: "US"
+        currency:
+          type: string
+          example: "USD"
+        locale:
+          type: string
+          example: "en_US"
+        page:
+          type: integer
+          example: 1
+
+    SearchParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for keyword-search requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/SearchMeta"
+        settings:
+          $ref: "#/components/schemas/SearchSettings"
+        item:
+          $ref: "#/components/schemas/SearchResult"
+
+    SearchMeta:
+      type: object
+      description: Request metadata set by the text-search parser
+      properties:
+        code:
+          type: integer
+          example: 200
+        v:
+          type: string
+          description: Parser spider version
+          example: "text_search_glo-v1.0.0"
+        request_time:
+          type: string
+          description: UTC timestamp when the request was received
+          example: "2026-06-18 12:00:00"
+        execution_time:
+          type: string
+          description: Total parse duration
+          example: "1.20s"
+
+    SearchSettings:
+      type: object
+      description: Echo of the request parameters
+      properties:
+        query:
+          type: string
+          example: "usb bluetooth adapter"
+        country:
+          type: string
+          example: "PL"
+        currency:
+          type: string
+          example: "PLN"
+        locale:
+          type: string
+          example: "en_US"
+        page:
+          type: integer
+          example: 1
+
+    SearchResult:
+      type: object
+      description: Products and category facets matched by the keyword search
+      properties:
+        products:
+          type: array
+          description: >
+            Matched products (empty when there are no matches). Each item uses the same shape as
+            the Get Product Info response, but only the card-level fields available on the search
+            results page are populated (id, title, img_url, price, ratings, sales); the remaining
+            fields are omitted or left at their zero value.
+          items:
+            $ref: "#/components/schemas/Product"
+        categories:
+          type: array
+          description: Product category facets offered for the query
+          items:
+            $ref: "#/components/schemas/SearchCategory"
+        count:
+          type: integer
+          description: Number of products returned on this page
+          example: 60
+        total_results:
+          type: integer
+          description: Total number of products available for the query across all pages
+          example: 4134
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 60
+        total_pages:
+          type: integer
+          description: Total number of pages (ceil(total_results / page_size))
+          example: 69
+        has_next_page:
+          type: boolean
+          description: >
+            Whether a next page can be fetched. Uses AliExpress' own last-page signal (it caps how
+            deep results can actually be retrieved, so this may be false even when page < total_pages).
+            Always false when this page returned no products.
+          example: true
+        has_previous_page:
+          type: boolean
+          description: Whether a previous page exists (page > 1)
+          example: false
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-18T12:00:00Z"
+
+    SearchCategory:
+      type: object
+      description: A product category facet offered for the search query
+      properties:
+        id:
+          type: string
+          example: "708032"
+        name:
+          type: string
+          example: "Docking Stations"
+
+    SellerProductsParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for seller-catalog requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/SellerProductsMeta"
+        settings:
+          $ref: "#/components/schemas/SellerProductsSettings"
+        item:
+          $ref: "#/components/schemas/SellerProductsResult"
+
+    SellerProductsMeta:
+      type: object
+      description: Request metadata set by the seller-products parser
+      properties:
+        code:
+          type: integer
+          example: 200
+        v:
+          type: string
+          description: Parser spider version
+          example: "seller_products_glo-v1.0.0"
+        request_time:
+          type: string
+          description: UTC timestamp when the request was received
+          example: "2026-06-18 12:00:00"
+        execution_time:
+          type: string
+          description: Total parse duration
+          example: "1.20s"
+
+    SellerProductsSettings:
+      type: object
+      description: Echo of the request parameters
+      properties:
+        seller_id:
+          type: integer
+          description: Seller (admin seq) ID, resolved from the store number when not provided
+          example: 0
+        store_num:
+          type: integer
+          example: 301635
+        country:
+          type: string
+          example: "PL"
+        currency:
+          type: string
+          example: "PLN"
+        page:
+          type: integer
+          example: 1
+
+    SellerProductsResult:
+      type: object
+      description: A page of the seller's product catalog (best-selling first)
+      properties:
+        products:
+          type: array
+          description: >
+            Catalog products for this page (empty when the page is beyond the last). Each item uses
+            the same shape as the Get Product Info response, but only the card-level fields available
+            on the store page are populated (id, title, img_url, price, ratings, review_amount,
+            sales); the remaining fields are omitted or left at their zero value.
+          items:
+            $ref: "#/components/schemas/Product"
+        count:
+          type: integer
+          description: Number of products returned on this page
+          example: 40
+        total_results:
+          type: integer
+          description: Total number of products in the store across all pages
+          example: 1280
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          description: Fixed page size for the catalog endpoint
+          example: 40
+        total_pages:
+          type: integer
+          description: Total number of pages (ceil(total_results / page_size))
+          example: 32
+        has_next_page:
+          type: boolean
+          description: Whether a next page can be fetched. Always false when this page returned no products.
+          example: true
+        has_previous_page:
+          type: boolean
+          description: Whether a previous page exists (page > 1)
+          example: false
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-18T12:00:00Z"
