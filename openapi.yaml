@@ -12,7 +12,7 @@ info:
     Seller products: a store's product catalog, paginated and best-selling first.
     Search: find products by keyword or by uploading an image, returning paginated product
     results with their categories.
-  version: "2.1"
+  version: "2.1.1"
   x-category: eCommerce
   x-long-description: |
     Fetches live data from AliExpress across several endpoints: product (by product ID, country,
@@ -42,6 +42,7 @@ paths:
           description: AliExpress product ID, taken from the product page URL.
           schema:
             type: integer
+            format: int64
             example: 1005004530469845
         - $ref: "#/components/parameters/CountryParam"
         - $ref: "#/components/parameters/CurrencyParam"
@@ -113,6 +114,7 @@ paths:
           description: AliExpress product ID, taken from the product page URL.
           schema:
             type: integer
+            format: int64
             example: 1005004530469845
         - $ref: "#/components/parameters/CountryParam"
         - $ref: "#/components/parameters/LocaleParam"

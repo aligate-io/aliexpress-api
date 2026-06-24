@@ -24,7 +24,7 @@ e-commerce product research.
 | Python | [`aligate`](https://pypi.org/project/aligate/) (PyPI) | `pip install aligate` |
 | Node.js | [`@aligate/sdk`](https://www.npmjs.com/package/@aligate/sdk) (npm) | `npm install @aligate/sdk` |
 | Java | `io.aligate:aligate-sdk` (Maven Central) | see [Java](#java) |
-| Go | [`aligate-io/aliexpress-go`](https://github.com/aligate-io/aliexpress-go) | `go get github.com/aligate-io/aliexpress-go` |
+| Go | [`aligate-io/aliexpress-go`](https://github.com/aligate-io/aliexpress-go) | `go get github.com/aligate-io/aliexpress-go/v2` |
 
 ---
 
@@ -107,7 +107,7 @@ console.log(res.data.item?.title);
 <dependency>
   <groupId>io.aligate</groupId>
   <artifactId>aligate-sdk</artifactId>
-  <version>2.1.0</version>
+  <version>2.1.1</version>
 </dependency>
 ```
 
