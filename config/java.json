@@ -5,5 +5,16 @@
   "invokerPackage": "io.aligate.sdk",
   "apiPackage": "io.aligate.sdk.api",
   "modelPackage": "io.aligate.sdk.model",
-  "hideGenerationTimestamp": true
+  "hideGenerationTimestamp": true,
+  "artifactDescription": "Official AliGate SDK for the AliExpress Data API",
+  "artifactUrl": "https://github.com/aligate-io/aliexpress-api",
+  "scmConnection": "scm:git:git@github.com:aligate-io/aliexpress-api.git",
+  "scmDeveloperConnection": "scm:git:git@github.com:aligate-io/aliexpress-api.git",
+  "scmUrl": "https://github.com/aligate-io/aliexpress-api",
+  "licenseName": "MIT",
+  "licenseUrl": "https://opensource.org/license/mit",
+  "developerName": "AliGate",
+  "developerEmail": "admin@aligate.io",
+  "developerOrganization": "AliGate",
+  "developerOrganizationUrl": "https://aligate.io"
 }

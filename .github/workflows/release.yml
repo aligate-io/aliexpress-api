@@ -75,6 +75,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          server-id: central # matches central-publishing-maven-plugin publishingServerId
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
       - name: Build Java client
         run: |
           cd generated/java
@@ -116,7 +121,20 @@ jobs:
             npm publish --access public
           fi
 
-      # ── TODO: registry publishing (enable once accounts + secrets exist) ─────────
-      # Maven Central (Central Publisher Portal; requires GPG signing + portal token):
-      #   - run: cd generated/java && mvn -q -DskipTests deploy -P release
-      #     env: { ... central portal + gpg secrets ... }
+      # ── Publish: Java → Maven Central (Central Portal, GPG-signed) ────────────────
+      - name: Publish Java client to Maven Central
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          VER: ${{ steps.ver.outputs.version }}
+        run: |
+          if curl -sfI "https://repo1.maven.org/maven2/io/aligate/aligate-sdk/${VER}/aligate-sdk-${VER}.pom" >/dev/null 2>&1; then
+            echo "io.aligate:aligate-sdk:${VER} already on Maven Central; skipping."
+          else
+            python3 scripts/inject-central-plugin.py generated/java/pom.xml
+            cd generated/java
+            # central-publishing-maven-plugin (extensions) handles the deploy-phase upload;
+            # disable the default deployer (no distributionManagement) and sign artifacts.
+            mvn --batch-mode -DskipTests -Dmaven.deploy.skip=true -P sign-artifacts deploy
+          fi
