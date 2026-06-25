@@ -64,6 +64,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "20"
+          registry-url: "https://registry.npmjs.org" # writes .npmrc that reads NODE_AUTH_TOKEN
       - name: Build TypeScript client
         run: |
           cd generated/typescript
@@ -102,11 +103,20 @@ jobs:
           packages-dir: generated/python/dist
           skip-existing: true # don't fail if this version is already on PyPI
 
+      # ── Publish: npm (scoped public package @aligate/sdk) ────────────────────────
+      - name: Publish Node.js client to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VER: ${{ steps.ver.outputs.version }}
+        run: |
+          cd generated/typescript
+          if npm view "@aligate/sdk@${VER}" version >/dev/null 2>&1; then
+            echo "@aligate/sdk@${VER} already published; skipping."
+          else
+            npm publish --access public
+          fi
+
       # ── TODO: registry publishing (enable once accounts + secrets exist) ─────────
-      # npm:
-      #   - run: cd generated/typescript && npm publish --access public
-      #     env: { NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} }
-      #
       # Maven Central (Central Publisher Portal; requires GPG signing + portal token):
       #   - run: cd generated/java && mvn -q -DskipTests deploy -P release
       #     env: { ... central portal + gpg secrets ... }
