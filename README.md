@@ -57,7 +57,7 @@ check) needs two headers:
 Base URL: `https://aligate-aliexpress-data-api.p.rapidapi.com`
 
 Get a key from the **[AliGate listing on RapidAPI](https://rapidapi.com/aligate/api/aligate-aliexpress-data-api)** (linked from
-[aligate.io/docs](https://aligate.io/docs)). The SDKs accept your RapidAPI key and attach the
+[api.aligate.io/docs](https://api.aligate.io/docs)). The SDKs accept your RapidAPI key and attach the
 required headers for you.
 
 ---
@@ -133,9 +133,10 @@ See **[aligate-io/aliexpress-go](https://github.com/aligate-io/aliexpress-go)**.
 
 ## Documentation
 
-- **Docs:** [aligate.io/docs](https://aligate.io/docs) — with a page per language.
+- **Interactive API docs (Swagger):** [api.aligate.io/docs](https://api.aligate.io/docs) — try the endpoints in-browser; request examples are cURL / HTTP.
+- **OpenAPI spec:** [api.aligate.io/openapi.yaml](https://api.aligate.io/openapi.yaml)
 - **API key & plans:** [AliGate on RapidAPI](https://rapidapi.com/aligate/api/aligate-aliexpress-data-api).
-- Each published package (PyPI / npm / Maven Central) includes its own generated reference.
+- Per-language reference: each published package (PyPI / npm / Maven Central) ships its own generated docs.
 
 ---
 
@@ -157,7 +158,7 @@ respective owner and is used here only to describe the data this API provides.
 
 ## Support
 
-- Website & docs: [aligate.io](https://aligate.io) · [aligate.io/docs](https://aligate.io/docs)
+- Website & docs: [aligate.io](https://aligate.io) · [api.aligate.io/docs](https://api.aligate.io/docs)
 - Email: [admin@aligate.io](mailto:admin@aligate.io)
 - Issues with the SDKs: open an issue in this repository.
 
