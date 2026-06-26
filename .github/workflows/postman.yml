@@ -62,13 +62,14 @@ jobs:
           NAME="$(jq -r '.collection.info.name' collection.json)"
 
           # Find an existing collection with this name in the AliGate workspace.
-          UID="$(curl -fsS "https://api.getpostman.com/collections?workspace=${POSTMAN_WORKSPACE_ID}" \
+          # NB: UID is a readonly bash builtin — use COLLECTION_UID.
+          COLLECTION_UID="$(curl -fsS "https://api.getpostman.com/collections?workspace=${POSTMAN_WORKSPACE_ID}" \
                   -H "X-Api-Key: ${POSTMAN_API_KEY}" \
                 | jq -r --arg n "$NAME" 'first(.collections[] | select(.name==$n) | .uid) // empty')"
 
-          if [ -n "${UID}" ]; then
-            echo "Updating existing collection ${UID}"
-            curl -fsS -X PUT "https://api.getpostman.com/collections/${UID}" \
+          if [ -n "${COLLECTION_UID}" ]; then
+            echo "Updating existing collection ${COLLECTION_UID}"
+            curl -fsS -X PUT "https://api.getpostman.com/collections/${COLLECTION_UID}" \
               -H "X-Api-Key: ${POSTMAN_API_KEY}" \
               -H "Content-Type: application/json" \
               --data @collection.json | jq -r '"updated: " + .collection.uid'
