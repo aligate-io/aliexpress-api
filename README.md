@@ -135,6 +135,7 @@ See **[aligate-io/aliexpress-go](https://github.com/aligate-io/aliexpress-go)**.
 
 - **Interactive API docs (Swagger):** [api.aligate.io/docs](https://api.aligate.io/docs) — try the endpoints in-browser; request examples are cURL / HTTP.
 - **OpenAPI spec:** [api.aligate.io/openapi.yaml](https://api.aligate.io/openapi.yaml)
+- **Run in Postman:** [![Run in Postman](https://run.pstmn.io/button.svg)](https://god.gw.postman.com/run-collection/56146508-1a47a06a-1024-47e6-959d-e2b8dadda07e?action=collection%2Ffork&source=rip_markdown)
 - **API key & plans:** [AliGate on RapidAPI](https://rapidapi.com/aligate/api/aligate-aliexpress-data-api).
 - Per-language reference: each published package (PyPI / npm / Maven Central) ships its own generated docs.
 

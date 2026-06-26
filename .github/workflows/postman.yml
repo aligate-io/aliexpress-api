@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - "openapi.yaml"
+      - "postman-overview.md"
   workflow_dispatch:
 
 permissions:
@@ -38,11 +39,15 @@ jobs:
       # The spec deliberately omits RapidAPI auth (RapidAPI injects it at its proxy, and
       # we must NOT add it to openapi.yaml or it would leak into the SDKs / RapidAPI docs).
       # So inject the two required headers + collection variables here, in Postman only.
-      - name: Inject RapidAPI headers + variables, wrap for the Postman API
+      - name: Inject RapidAPI headers + variables + SEO overview, wrap for the Postman API
         run: |
+          # postman-overview.md is the SEO-rich collection overview (Postman-only; the spec's
+          # own description is NOT touched). --rawfile loads it as a plain string.
           jq \
-            --arg host "$RAPIDAPI_HOST" '
-            .variable = [
+            --arg host "$RAPIDAPI_HOST" \
+            --rawfile overview postman-overview.md '
+            .info.description = $overview
+            | .variable = [
               {"key":"baseUrl","value":("https://" + $host)},
               {"key":"x-rapidapi-host","value":$host},
               {"key":"x-rapidapi-key","value":"YOUR_RAPIDAPI_KEY"}
