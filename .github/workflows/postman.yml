@@ -1,0 +1,81 @@
+name: Sync Postman Collection
+
+# Convert the public OpenAPI spec into a Postman collection and publish it to the
+# AliGate workspace whenever the spec changes. Source of truth is the SAME openapi.yaml
+# the SDKs are generated from (RapidAPI public host), so Postman never drifts from the
+# published clients. Kept separate from release.yml so a Postman hiccup can't fail an
+# SDK publish.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "openapi.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # AliGate (team) workspace — only used for the create-if-missing fallback.
+  POSTMAN_WORKSPACE_ID: bf0dca36-80de-4f0b-8244-29e07ce54f4d
+  RAPIDAPI_HOST: aligate-aliexpress-data-api.p.rapidapi.com
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Convert OpenAPI spec to a Postman collection
+        run: |
+          npm install -g openapi-to-postmanv2@5
+          openapi2postmanv2 -s openapi.yaml -o collection.raw.json -p -O folderStrategy=Paths
+
+      # The spec deliberately omits RapidAPI auth (RapidAPI injects it at its proxy, and
+      # we must NOT add it to openapi.yaml or it would leak into the SDKs / RapidAPI docs).
+      # So inject the two required headers + collection variables here, in Postman only.
+      - name: Inject RapidAPI headers + variables, wrap for the Postman API
+        run: |
+          jq \
+            --arg host "$RAPIDAPI_HOST" '
+            .variable = [
+              {"key":"baseUrl","value":("https://" + $host)},
+              {"key":"x-rapidapi-host","value":$host},
+              {"key":"x-rapidapi-key","value":"YOUR_RAPIDAPI_KEY"}
+            ]
+            | (.. | objects | select(has("request")) | .request.header) += [
+                {"key":"x-rapidapi-key","value":"{{x-rapidapi-key}}"},
+                {"key":"x-rapidapi-host","value":"{{x-rapidapi-host}}"}
+              ]
+          ' collection.raw.json | jq '{collection: .}' > collection.json
+          echo "Collection: $(jq -r '.collection.info.name' collection.json) — $(jq '[.collection | .. | objects | select(has("request"))] | length' collection.json) requests"
+
+      - name: Publish to Postman (update existing, else create in AliGate)
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          set -euo pipefail
+          NAME="$(jq -r '.collection.info.name' collection.json)"
+
+          # Find an existing collection with this name in the AliGate workspace.
+          UID="$(curl -fsS "https://api.getpostman.com/collections?workspace=${POSTMAN_WORKSPACE_ID}" \
+                  -H "X-Api-Key: ${POSTMAN_API_KEY}" \
+                | jq -r --arg n "$NAME" 'first(.collections[] | select(.name==$n) | .uid) // empty')"
+
+          if [ -n "${UID}" ]; then
+            echo "Updating existing collection ${UID}"
+            curl -fsS -X PUT "https://api.getpostman.com/collections/${UID}" \
+              -H "X-Api-Key: ${POSTMAN_API_KEY}" \
+              -H "Content-Type: application/json" \
+              --data @collection.json | jq -r '"updated: " + .collection.uid'
+          else
+            echo "No existing collection named \"${NAME}\" — creating it in workspace ${POSTMAN_WORKSPACE_ID}"
+            curl -fsS -X POST "https://api.getpostman.com/collections?workspace=${POSTMAN_WORKSPACE_ID}" \
+              -H "X-Api-Key: ${POSTMAN_API_KEY}" \
+              -H "Content-Type: application/json" \
+              --data @collection.json | jq -r '"created: " + .collection.uid'
+          fi
