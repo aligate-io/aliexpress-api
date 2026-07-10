@@ -12,7 +12,7 @@ info:
     Seller products: a store's product catalog, paginated and best-selling first.
     Search: find products by keyword or by uploading an image, returning paginated product
     results with their categories.
-  version: "2.2.0"
+  version: "2.3.0"
   x-category: eCommerce
   x-long-description: |
     Fetches live data from AliExpress across several endpoints: product (by product ID, country,
@@ -363,6 +363,60 @@ paths:
                 $ref: "#/components/schemas/ImageSearchParseResponse"
         "400":
           description: Missing or invalid request body (country and currency are required, plus exactly one of image64/image_url)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Image-search parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      summary: Search By Image URL
+      description: |
+        Finds AliExpress products that visually match an image, given a URL to download it from.
+        GET is URL-only — base64-encoded image bytes are too large for a query string, so callers
+        with raw image bytes must use the POST variant of this endpoint instead. Results are
+        influenced by the requested shipping country and currency, and are paginated. A query with
+        no visual matches returns HTTP 200 with an empty products array.
+      operationId: Search By Image URL
+      parameters:
+        - name: image_url
+          in: query
+          required: true
+          description: URL of the image to search by; downloaded server-side.
+          schema:
+            type: string
+            format: uri
+            example: "https://example.com/product-photo.jpg"
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/CurrencyParam"
+        - $ref: "#/components/parameters/LocaleParam"
+        - name: page
+          in: query
+          required: false
+          description: Page number of results to return (starts at 1).
+          schema:
+            type: integer
+            default: 1
+            example: 1
+      responses:
+        "200":
+          description: Image search completed (products is empty when there are no matches)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageSearchParseResponse"
+        "400":
+          description: Missing or invalid query parameters (image_url, country and currency are required)
           content:
             application/json:
               schema:
