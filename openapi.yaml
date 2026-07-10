@@ -12,7 +12,7 @@ info:
     Seller products: a store's product catalog, paginated and best-selling first.
     Search: find products by keyword or by uploading an image, returning paginated product
     results with their categories.
-  version: "2.1.1"
+  version: "2.2.0"
   x-category: eCommerce
   x-long-description: |
     Fetches live data from AliExpress across several endpoints: product (by product ID, country,
@@ -342,10 +342,11 @@ paths:
     post:
       summary: Search By Image
       description: |
-        Finds AliExpress products that visually match an uploaded image. Provide the image as a
-        base64-encoded string in the JSON body. Results are influenced by the requested shipping
-        country and currency, and are paginated. A query with no visual matches returns HTTP 200
-        with an empty products array.
+        Finds AliExpress products that visually match an image. Provide the image either as a
+        base64-encoded string (image64) or as a URL to download it from (image_url) — exactly one
+        of the two is required. Results are influenced by the requested shipping country and
+        currency, and are paginated. A query with no visual matches returns HTTP 200 with an empty
+        products array.
       operationId: Search By Image
       requestBody:
         required: true
@@ -361,7 +362,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ImageSearchParseResponse"
         "400":
-          description: Missing or invalid request body (image64, country and currency are required)
+          description: Missing or invalid request body (country and currency are required, plus exactly one of image64/image_url)
           content:
             application/json:
               schema:
@@ -1354,13 +1355,20 @@ components:
 
     ImageSearchRequest:
       type: object
-      description: Image-search request body
-      required: [image64, country, currency]
+      description: |
+        Image-search request body. Provide exactly one of image64 or image_url.
+      required: [country, currency]
       properties:
         image64:
           type: string
-          description: Base64-encoded image bytes to search by.
+          description: Base64-encoded image bytes to search by. Provide either this or image_url.
           example: "/9j/4AAQSkZJRgABAQEAYABgAAD..."
+        image_url:
+          type: string
+          format: uri
+          description: >-
+            URL of the image to search by; downloaded server-side. Provide either this or image64.
+          example: "https://example.com/product-photo.jpg"
         country:
           type: string
           description: Country code (ISO 3166-1 alpha-2) used for pricing and shipping eligibility.
