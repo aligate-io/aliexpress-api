@@ -3,24 +3,28 @@ info:
   title: AliExpress Parser API
   description: |
     Real-time AliExpress data parser covering products, product reviews, sellers, store
-    coupons, a seller's product catalog, and product search by text or image.
+    coupons, a seller's product catalog, product shipping, and product search by text or
+    image.
     Products: pricing, stock status, shipping options, seller information, product
     configurations (SKUs), and more - scoped to a specific country and currency.
     Reviews: customer ratings and feedback for a product.
     Sellers: full store profile with ratings, feedback, and categories.
     Coupons: active seller coupon codes with discounts, thresholds, budgets, and expiry.
     Seller products: a store's product catalog, paginated and best-selling first.
+    Shipping: shipping methods for a product with cost, carrier, and delivery estimate.
     Search: find products by keyword or by uploading an image, returning paginated product
     results with their categories.
-  version: "2.3.0"
+  version: "2.5.0"
   x-category: eCommerce
   x-long-description: |
     Fetches live data from AliExpress across several endpoints: product (by product ID, country,
     and currency), product reviews (by product ID), seller (store profile by store number),
     seller coupons (active coupon campaigns by store number, shipping country, and currency),
     seller products (a store's paginated product catalog by store number, shipping country, and
-    currency), text search (products matching a keyword), and image search (products matching an
-    uploaded image). Prices, shipping options, coupon eligibility, and search results are returned
+    currency), product shipping (shipping methods with cost, carrier, and delivery window by
+    product ID, shipping country, and currency), text search (products matching a keyword), and
+    image search (products matching an uploaded image). Prices, shipping options, coupon
+    eligibility, and search results are returned
     for the requested country and currency. Typical response time is 1-5 seconds.
 
 servers:
@@ -149,6 +153,58 @@ paths:
                 $ref: "#/components/schemas/Error"
         "503":
           description: Reviews parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/product/shipping-h5:
+    get:
+      summary: Get Product Shipping
+      description: |
+        Returns the shipping methods available for an AliExpress product in the requested
+        country: cost, currency, carrier, estimated delivery window, and the free-shipping
+        and tracking flags. Costs are resolved for the requested country and currency.
+      operationId: Get Product Shipping
+      parameters:
+        - name: product_id
+          in: query
+          required: true
+          description: AliExpress product ID, taken from the product page URL.
+          schema:
+            type: integer
+            format: int64
+            example: 1005004530469845
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/CurrencyParam"
+        - $ref: "#/components/parameters/LocaleParam"
+      responses:
+        "200":
+          description: Shipping methods successfully resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShippingParseResponse"
+        "400":
+          description: Missing or invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found on AliExpress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Shipping parser not configured on this deployment
           content:
             application/json:
               schema:
@@ -935,6 +991,55 @@ components:
           type: boolean
         tracking:
           type: boolean
+
+    ShippingParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for shipping requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/ParseMeta"
+        settings:
+          $ref: "#/components/schemas/ShippingSettings"
+        item:
+          type: array
+          description: Shipping methods available for the requested product and country (empty on failure)
+          items:
+            $ref: "#/components/schemas/ShippingMethod"
+
+    # Deliberately FLAT, unlike the gateway's own spec, which models this as
+    # oneOf[ShippingSuccessSettings, ParseSettings]. Two all-optional object schemas with no
+    # discriminator match ambiguously, and the generated clients treat that as a hard
+    # deserialization error (go: "data matches more than one schema in oneOf", python:
+    # "Multiple matches found", java: "2 classes match result, expected 1"), besides forcing
+    # wrapper and union types on callers. This schema is the union of both echoes, all optional.
+    # Do NOT replace it with the gateway's oneOf when syncing the spec.
+    ShippingSettings:
+      type: object
+      description: >
+        Echo of the shipping request. product_id, sku_id, country and currency are set when the
+        shipping methods were resolved; locale, currency, country and item_id are set when the
+        parse failed and no methods are returned.
+      properties:
+        product_id:
+          type: integer
+          format: int64
+          example: 1005004530469845
+        sku_id:
+          type: string
+          example: "12000038646386"
+        country:
+          type: string
+          example: PL
+        currency:
+          type: string
+          example: PLN
+        locale:
+          type: string
+          example: "en_US"
+        item_id:
+          type: integer
+          format: int64
+          example: 1005004530469845
 
     SellerParseResponse:
       type: object

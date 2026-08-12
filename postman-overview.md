@@ -27,6 +27,7 @@ Every request needs two headers, already wired here as collection variables:
 | --- | --- |
 | **Get Product Info** | Full product detail: pricing, SKUs/variants, stock, shipping, seller, optional description. |
 | **Get Product Reviews** | Paginated buyer reviews with rating breakdown, filters, and sorting. |
+| **Get Product Shipping** | Shipping methods for a product, per country and currency: cost, carrier, delivery window, and free-shipping and tracking flags. |
 | **Get Seller Info** | Store profile: ratings, feedback, followers, store age, categories. |
 | **Get Seller Coupons** | Active store coupon campaigns, scoped to country & currency. |
 | **Get Seller Products** | A store's product catalog, paginated and best-selling first. |
