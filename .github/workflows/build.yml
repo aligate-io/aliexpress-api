@@ -1,0 +1,71 @@
+name: Build SDKs (no publish)
+
+# Generate and build all three clients without releasing or publishing anything.
+#
+# The generated clients pull floating dependency ranges (axios "^1.16.0", typescript
+# "^4.0 || ^5.0") and carry no lockfile — scripts/generate.sh wipes generated/ on every
+# run — so an upstream release can break the build with no change in this repo. That is
+# exactly what happened when axios 1.19.0 landed on 2026-07-29: nothing here changed, and
+# the next thing to touch the repo was a release, which then failed with three registries
+# unpublished. The weekly schedule below is what turns that into a red run on a Monday
+# instead of a blocked release.
+on:
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays — catches dependency drift with no PR activity
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Version only has to be a valid semver for the generators; nothing is published,
+      # so it does not need to match the spec.
+      - name: Generate clients (Docker)
+        run: ./scripts/generate.sh 0.0.0
+
+      # The generator container runs as root, so generated/ ends up root-owned. Reclaim
+      # ownership so the (non-root) build steps below can write into those trees.
+      - name: Fix generated file ownership
+        run: sudo chown -R "$(id -u):$(id -g)" generated
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build Python client
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build generated/python
+          pip install generated/python
+          python -c "import aligate; print('python client OK')"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+      # Same backport as release.yml — see scripts/patch-typescript-axios.py. Keep the two
+      # call sites in step; grep -rn patch-typescript-axios . finds both.
+      - name: Patch TypeScript client (openapi-generator #24526)
+        run: python3 scripts/patch-typescript-axios.py generated/typescript/common.ts
+      - name: Build TypeScript client
+        run: |
+          cd generated/typescript
+          npm install
+          npm run build
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build Java client
+        run: |
+          cd generated/java
+          mvn -q -DskipTests package
