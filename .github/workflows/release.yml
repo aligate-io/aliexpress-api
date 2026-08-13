@@ -65,6 +65,11 @@ jobs:
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org" # writes .npmrc that reads NODE_AUTH_TOKEN
+      # openapi-generator 7.23.0 emits createRequestFunction with an inferred return type,
+      # which axios >= 1.19.0 makes un-nameable under `declaration: true` (TS2527).
+      # Backport of upstream PR #24526; remove once the pinned generator release has it.
+      - name: Patch TypeScript client (openapi-generator #24526)
+        run: python3 scripts/patch-typescript-axios.py generated/typescript/common.ts
       - name: Build TypeScript client
         run: |
           cd generated/typescript
