@@ -35,6 +35,7 @@ e-commerce product research.
 | **Product data** | Full product detail by product ID: pricing, SKUs/variants, stock, shipping, seller, optional description — per country & currency. |
 | **Product reviews** | Paginated buyer reviews with rating breakdown, filters, and sorting. |
 | **Product shipping** | Shipping methods for a product, per country and currency: cost, carrier, delivery window, and free-shipping and tracking flags. |
+| **Product description** | Just the product's long-form description: sanitized HTML, plain text, and the images from the description gallery. |
 | **Seller / store info** | Store profile: ratings, feedback, followers, store age, categories. |
 | **Seller coupons** | Active store coupon campaigns, scoped to country & currency. |
 | **Seller products** | A store's product catalog, paginated and best-selling first. |

@@ -3,8 +3,8 @@ info:
   title: AliExpress Parser API
   description: |
     Real-time AliExpress data parser covering products, product reviews, sellers, store
-    coupons, a seller's product catalog, product shipping, and product search by text or
-    image.
+    coupons, a seller's product catalog, product shipping, product descriptions, and product
+    search by text or image.
     Products: pricing, stock status, shipping options, seller information, product
     configurations (SKUs), and more - scoped to a specific country and currency.
     Reviews: customer ratings and feedback for a product.
@@ -12,9 +12,11 @@ info:
     Coupons: active seller coupon codes with discounts, thresholds, budgets, and expiry.
     Seller products: a store's product catalog, paginated and best-selling first.
     Shipping: shipping methods for a product with cost, carrier, and delivery estimate.
+    Description: a product's long-form description on its own - HTML, plain text, and the
+    images extracted from the description gallery.
     Search: find products by keyword or by uploading an image, returning paginated product
     results with their categories.
-  version: "2.5.0"
+  version: "2.6.1"
   x-category: eCommerce
   x-long-description: |
     Fetches live data from AliExpress across several endpoints: product (by product ID, country,
@@ -22,9 +24,10 @@ info:
     seller coupons (active coupon campaigns by store number, shipping country, and currency),
     seller products (a store's paginated product catalog by store number, shipping country, and
     currency), product shipping (shipping methods with cost, carrier, and delivery window by
-    product ID, shipping country, and currency), text search (products matching a keyword), and
-    image search (products matching an uploaded image). Prices, shipping options, coupon
-    eligibility, and search results are returned
+    product ID, shipping country, and currency), product description (the long-form description
+    on its own - HTML, plain text, and gallery images - by product ID), text search (products
+    matching a keyword), and image search (products matching an uploaded image). Prices,
+    shipping options, coupon eligibility, and search results are returned
     for the requested country and currency. Typical response time is 1-5 seconds.
 
 servers:
@@ -160,12 +163,12 @@ paths:
 
   /api/v2/product/shipping-h5:
     get:
-      summary: Get Product Shipping
+      summary: Get Shipping Info
       description: |
         Returns the shipping methods available for an AliExpress product in the requested
         country: cost, currency, carrier, estimated delivery window, and the free-shipping
         and tracking flags. Costs are resolved for the requested country and currency.
-      operationId: Get Product Shipping
+      operationId: Get Shipping Info
       parameters:
         - name: product_id
           in: query
@@ -205,6 +208,60 @@ paths:
                 $ref: "#/components/schemas/Error"
         "503":
           description: Shipping parser not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v2/product/description:
+    get:
+      summary: Get Description
+      description: |
+        Returns only the AliExpress product's long-form description — sanitized HTML, a
+        plain-text version, and the image URLs extracted from the description gallery —
+        without the rest of the product payload. Use this endpoint when the description is
+        all that is needed instead of fetching the full product via
+        /api/v2/product?with_description=true.
+      operationId: Get Description
+      parameters:
+        - name: product_id
+          in: query
+          required: true
+          description: AliExpress product ID, taken from the product page URL.
+          schema:
+            type: integer
+            format: int64
+            example: 1005004530469845
+        - $ref: "#/components/parameters/CountryParam"
+        - $ref: "#/components/parameters/CurrencyParam"
+        - $ref: "#/components/parameters/LocaleParam"
+      responses:
+        "200":
+          description: Product description successfully resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DescriptionParseResponse"
+        "400":
+          description: Missing or invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing RapidAPI credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Product not found on AliExpress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Description parser not configured on this deployment
           content:
             application/json:
               schema:
@@ -1027,6 +1084,46 @@ components:
         sku_id:
           type: string
           example: "12000038646386"
+        country:
+          type: string
+          example: PL
+        currency:
+          type: string
+          example: PLN
+        locale:
+          type: string
+          example: "en_US"
+        item_id:
+          type: integer
+          format: int64
+          example: 1005004530469845
+
+    DescriptionParseResponse:
+      type: object
+      description: Top-level response envelope returned by the gateway for description requests
+      properties:
+        meta:
+          $ref: "#/components/schemas/ParseMeta"
+        settings:
+          $ref: "#/components/schemas/DescriptionSettings"
+        item:
+          $ref: "#/components/schemas/ProductDescription"
+
+    # Deliberately FLAT, for the same reason as ShippingSettings above — the gateway models this
+    # as oneOf[DescriptionSuccessSettings, ParseSettings], which every generator rejects as an
+    # ambiguous match. This schema is the union of both echoes, all optional.
+    # Do NOT replace it with the gateway's oneOf when syncing the spec.
+    DescriptionSettings:
+      type: object
+      description: >
+        Echo of the description request. product_id, country and currency are set when the
+        description was resolved; locale, currency, country and item_id are set when the parse
+        failed and no description is returned.
+      properties:
+        product_id:
+          type: integer
+          format: int64
+          example: 1005004530469845
         country:
           type: string
           example: PL
