@@ -16,7 +16,7 @@ info:
     images extracted from the description gallery.
     Search: find products by keyword or by uploading an image, returning paginated product
     results with their categories.
-  version: "2.6.1"
+  version: "2.7.0"
   x-category: eCommerce
   x-long-description: |
     Fetches live data from AliExpress across several endpoints: product (by product ID, country,
@@ -161,13 +161,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/v2/product/shipping-h5:
+  /api/v2/product/shipping:
     get:
       summary: Get Shipping Info
       description: |
-        Returns the shipping methods available for an AliExpress product in the requested
-        country: cost, currency, carrier, estimated delivery window, and the free-shipping
-        and tracking flags. Costs are resolved for the requested country and currency.
+        Returns the shipping methods available for a product in the requested country: cost,
+        currency, carrier, estimated delivery window, and the free-shipping and tracking
+        flags. Costs are resolved for the requested country and currency.
       operationId: Get Shipping Info
       parameters:
         - name: product_id
@@ -178,6 +178,15 @@ paths:
             type: integer
             format: int64
             example: 1005004530469845
+        - name: sku_id
+          in: query
+          required: false
+          description: >
+            AliExpress SKU (variant) ID. Supplying it narrows the estimate to that specific
+            variant; it may be omitted to get the product's default shipping options.
+          schema:
+            type: string
+            example: "12000038646386"
         - $ref: "#/components/parameters/CountryParam"
         - $ref: "#/components/parameters/CurrencyParam"
         - $ref: "#/components/parameters/LocaleParam"
